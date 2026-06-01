@@ -7,7 +7,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# CANCELA ejecuciones previas si hay un commit nuevo
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -16,9 +15,12 @@ jobs:
   frontend-checks:
     name: Frontend Static Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      # Instalación explícita de pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -30,12 +32,21 @@ jobs:
   android-checks:
     name: Android Build & Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      # Instalación explícita de pnpm para el job de Android
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
       
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      # Instalar dependencias para que el plugin de Gradle exista físicamente
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -48,7 +59,6 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
 
-      # Permisos de ejecución para el gradlew (Vital para que no falle)
       - name: Grant execute permission for gradlew
         run: chmod +x android/gradlew
 
