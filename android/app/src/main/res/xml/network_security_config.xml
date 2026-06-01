@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Configuration - NexusLink
+  Permite tráfico HTTP (cleartext) en red local (127.0.0.1, 192.168.x.x, etc.)
+  para el servidor WebDAV embebido. HTTPS se recomienda en producción.
+  
+  Referencia: https://developer.android.com/training/articles/security-config
+-->
+<network-security-config>
+  <!-- Configuración para dominios específicos de red local -->
+  <domain-config cleartextTrafficPermitted="true">
+    <!-- localhost y 127.0.0.1 -->
+    <domain includeSubdomains="true">localhost</domain>
+    <domain includeSubdomains="true">127.0.0.1</domain>
+    
+    <!-- Redes privadas (RFC 1918) -->
+    <domain includeSubdomains="true">10.0.0.0</domain>
+    <domain includeSubdomains="true">172.16.0.0</domain>
+    <domain includeSubdomains="true">192.168.0.0</domain>
+    
+    <!-- Link-local (169.254.x.x) -->
+    <domain includeSubdomains="true">169.254.0.0</domain>
+  </domain-config>
+
+  <!-- Configuración por defecto: bloquear HTTP en dominios públicos -->
+  <domain-config cleartextTrafficPermitted="false">
+    <domain includeSubdomains="true">example.com</domain>
+  </domain-config>
+</network-security-config>
