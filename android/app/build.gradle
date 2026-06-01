@@ -105,11 +105,24 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+    packaging {
+        resources {
+            pickFirst 'META-INF/INDEX.LIST'
+            pickFirst 'META-INF/io.netty.versions.properties'
+        }
+    }
 }
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    // Ktor Server (para el WebDAV)
+    implementation "io.ktor:ktor-server-core:2.3.0"
+    implementation "io.ktor:ktor-server-netty:2.3.0"
+    implementation "io.ktor:ktor-server-host-common:2.3.0"
+    
+    // Corrutinas para no bloquear el hilo principal
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.1"
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
