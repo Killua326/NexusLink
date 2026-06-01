@@ -1,20 +1,18 @@
-/**
- * NexusLink - Servidor WebDAV en Android
- * Aplicación principal
- */
-
+// src/App.tsx
 import React from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import { StatusBar, useColorScheme } from 'react-native'; // Usado
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Dashboard from './src/ui/Dashboard';
+import "./global.css";
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const colorScheme = useColorScheme(); // Ahora sí está en uso
+  const isDarkMode = colorScheme === 'dark';
 
   return (
     <SafeAreaProvider>
       <StatusBar
-        barStyle="light-content"
+        barStyle={isDarkMode ? "light-content" : "dark-content"}
         backgroundColor="#0f172a"
         translucent={false}
       />
