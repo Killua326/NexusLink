@@ -1,6 +1,9 @@
 package com.nexuslink
 
-import android.app.*
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
@@ -41,15 +44,16 @@ class WebDAVService : Service() {
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(serviceChannel)
+            manager?.createNotificationChannel(serviceChannel)
         }
     }
 
     private fun getNotification(content: String): Notification {
+        // Usamos un icono estándar de Android para evitar errores
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("NexusLink")
+            .setContentTitle("NexusLink WebDAV")
             .setContentText(content)
-            .setSmallIcon(android.R.drawable.stat_sys_data_sync) // Usa un icono adecuado
+            .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .build()
     }
 
@@ -65,6 +69,7 @@ class WebDAVService : Service() {
 
     private fun stopKtorServer() {
         server?.stop(1000, 2000)
+        stopForeground(true)
         stopSelf()
     }
 
