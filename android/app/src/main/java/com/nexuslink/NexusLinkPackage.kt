@@ -7,7 +7,6 @@ import com.facebook.react.uimanager.ViewManager
 
 class NexusLinkPackage : ReactPackage {
     
-    // Aquí es donde registramos tu módulo nativo
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
         return listOf(NexusLinkModule(reactContext))
     }
