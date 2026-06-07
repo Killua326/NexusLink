@@ -33,8 +33,11 @@ class NativeBridgeService {
    */
   async startServer(config: ServerConfig): Promise<boolean> {
     try {
-      const result = await NexusLinkModule.startServer(config);
-      return result === true;
+      // ✅ CORRECCIÓN 1: Pasamos específicamente el 'port' (número), que es lo que pide Kotlin
+      const result = await NexusLinkModule.startServer(config.port);
+      
+      // ✅ CORRECCIÓN 2: Verificamos el string que Kotlin realmente devuelve
+      return result === "Server started";
     } catch (error) {
       console.error('[NativeBridge] Error starting server:', error);
       throw error;
@@ -43,12 +46,13 @@ class NativeBridgeService {
 
   /**
    * Detiene el servidor WebDAV y libera recursos
-   * @returns Promise<boolean> true si fue exitoso
    */
   async stopServer(): Promise<boolean> {
     try {
       const result = await NexusLinkModule.stopServer();
-      return result === true;
+      
+      // ✅ CORRECCIÓN: Verificamos el string que Kotlin realmente devuelve
+      return result === "Server stopped";
     } catch (error) {
       console.error('[NativeBridge] Error stopping server:', error);
       throw error;
