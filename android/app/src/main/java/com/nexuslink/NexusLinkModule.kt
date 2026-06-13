@@ -10,11 +10,21 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     @ReactMethod
     fun startServer(port: Int, promise: Promise) {
         try {
-            val intent = Intent(reactApplicationContext, WebDAVService::class.java).apply {
+            // Accedemos a la actividad actual de forma segura
+            val activity = reactApplicationContext.currentActivity
+            
+            // Si no hay actividad, intentamos usar el contexto de la aplicación,
+            // pero para startForegroundService es mejor tener una actividad.
+            val context = activity ?: reactApplicationContext
+            
+            val intent = Intent(context, WebDAVService::class.java).apply {
                 putExtra("port", port)
                 action = "START_SERVER"
             }
-            reactApplicationContext.startForegroundService(intent)
+            
+            // Ahora usamos el contexto validado
+            context.startForegroundService(intent)
+            
             promise.resolve("Server started")
         } catch (e: Exception) {
             promise.reject("START_ERROR", e.message)

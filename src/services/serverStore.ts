@@ -137,7 +137,11 @@ export const useServerStore = create<ExtendedServerState & ServerStoreActions>((
         if (!result) {
           set({ uiError: 'Error al iniciar el servidor' });
         } else {
-          set({ config });
+          set({ 
+            isRunning: true, 
+            config: config, 
+            isLoading: false 
+          });
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Error desconocido';
@@ -150,7 +154,7 @@ export const useServerStore = create<ExtendedServerState & ServerStoreActions>((
 
     stopServer: async () => {
       try {
-        set({ isLoading: true, uiError: null });
+        set({ isLoading: true, uiError: null, isRunning: false  });
         const result = await nativeBridge.stopServer();
         if (!result) {
           set({ uiError: 'Error al detener el servidor' });

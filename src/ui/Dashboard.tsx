@@ -6,6 +6,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useServerStore } from '../services/serverStore';
@@ -62,7 +64,22 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const requestNotificationPermission = async (): Promise<boolean> => {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+      return granted === PermissionsAndroid.RESULTS.GRANTED;
+    }
+    return true;
+  };
+
   const handleStartServer = async () => {
+    const hasPermission = await requestNotificationPermission();
+    if (!hasPermission) {
+      Alert.alert("Permiso denegado", "Necesitas aceptar los permisos de notificación para iniciar el servidor en segundo plano.");
+      return;
+    }
     if (!config.rootDirectoryUri) {
       Alert.alert('Carpeta no seleccionada', 'Por favor, selecciona un directorio raíz.');
       return;

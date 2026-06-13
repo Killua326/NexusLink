@@ -35,7 +35,7 @@ class NativeBridgeService {
     try {
       // ✅ CORRECCIÓN 1: Pasamos específicamente el 'port' (número), que es lo que pide Kotlin
       const result = await NexusLinkModule.startServer(config.port);
-      
+      console.log("Resultado del Bridge:", result);
       // ✅ CORRECCIÓN 2: Verificamos el string que Kotlin realmente devuelve
       return result === "Server started";
     } catch (error) {
