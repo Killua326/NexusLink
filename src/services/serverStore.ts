@@ -60,7 +60,7 @@ const initialState: ExtendedServerState = {
   isLoading: false,
   uiError: null,
   config: {
-    port: 8080,
+    port: 9999,
     maxConnections: 10,
     isReadOnly: false,
   },
