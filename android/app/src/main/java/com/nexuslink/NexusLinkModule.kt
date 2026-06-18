@@ -1,30 +1,64 @@
 package com.nexuslink
 
-import com.facebook.react.bridge.*
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import com.facebook.react.bridge.*
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
     override fun getName() = "NexusLinkModule"
 
+    // Receptor de eventos desde el WebDAVService
+    private val eventReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.nexuslink.SERVER_EVENT") {
+                val type = intent.getStringExtra("type")
+                if (type == "CONNECTION_COUNT") {
+                    val count = intent.getIntExtra("count", 0)
+                    reactApplicationContext
+                        .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                        .emit("onConnectionCountUpdated", count)
+                }
+            }
+        }
+    }
+
+    override fun initialize() {
+        super.initialize()
+        val filter = IntentFilter("com.nexuslink.SERVER_EVENT")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            reactApplicationContext.registerReceiver(eventReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            reactApplicationContext.registerReceiver(eventReceiver, filter)
+        }
+    }
+
+    override fun invalidate() {
+        super.invalidate()
+        try {
+            reactApplicationContext.unregisterReceiver(eventReceiver)
+        } catch (e: Exception) {
+            // Ignorar si no estaba registrado
+        }
+    }
+
     @ReactMethod
     fun startServer(port: Int, promise: Promise) {
         try {
-            // Accedemos a la actividad actual de forma segura
             val activity = reactApplicationContext.currentActivity
-            
-            // Si no hay actividad, intentamos usar el contexto de la aplicación,
-            // pero para startForegroundService es mejor tener una actividad.
             val context = activity ?: reactApplicationContext
-            
             val intent = Intent(context, WebDAVService::class.java).apply {
                 putExtra("port", port)
+                // Opcional: pasaríamos maxConnections y isReadOnly aquí desde React Native
+                putExtra("maxConnections", 10) 
+                putExtra("isReadOnly", false)
                 action = "START_SERVER"
             }
-            
-            // Ahora usamos el contexto validado
             context.startForegroundService(intent)
-            
             promise.resolve("Server started")
         } catch (e: Exception) {
             promise.reject("START_ERROR", e.message)
@@ -44,15 +78,10 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
         }
     }
 
-    // =========================================================================
-    // MÉTODOS FALTANTES DEL CONTRATO (Stubs para Épica C)
-    // =========================================================================
-    
     @ReactMethod
     fun getServerStatus(promise: Promise) {
-        // Devolvemos el ServerState inicial para que TS no falle al abrir la app
         val map = Arguments.createMap()
-        map.putBoolean("isRunning", false) 
+        map.putBoolean("isRunning", false)
         map.putString("ipAddress", null)
         map.putInt("activeConnections", 0)
         map.putString("errorMessage", null)
@@ -61,24 +90,15 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
 
     @ReactMethod
     fun pickRootDirectory(promise: Promise) {
-        // Stub simulado. La implementación real de SAF se hará en la Épica E.
         val map = Arguments.createMap()
-        map.putString("uri", "content://com.android.providers.downloads.documents/document/raw%3A%2Fstorage%2Femulated%2F0%2FDownload")
-        map.putString("name", "Carpeta Simulada (Stub)")
+        map.putString("uri", "mock_uri")
+        map.putString("name", "Carpeta Interna (Mock)")
         promise.resolve(map)
     }
 
-    // =========================================================================
-    // MÉTODOS OBLIGATORIOS PARA NativeEventEmitter (React Native 0.71+)
-    // =========================================================================
-    
     @ReactMethod
-    fun addListener(eventName: String) {
-        // Requerido por el contrato del Bridge. Mantener vacío.
-    }
+    fun addListener(eventName: String) {}
 
     @ReactMethod
-    fun removeListeners(count: Int) {
-        // Requerido por el contrato del Bridge. Mantener vacío.
-    }
+    fun removeListeners(count: Int) {}
 }

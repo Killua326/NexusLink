@@ -86,7 +86,7 @@ const Dashboard: React.FC = () => {
     }
 
     const serverConfig: ServerConfig = {
-      port: config.port ?? 8080,
+      port: config.port ?? 9999,
       rootDirectoryUri: config.rootDirectoryUri,
       rootDirectoryName: config.rootDirectoryName ?? 'Raíz',
       isReadOnly: config.isReadOnly ?? false,
@@ -130,7 +130,7 @@ const Dashboard: React.FC = () => {
         {isRunning && ipAddress ? (
           <View className="items-center mb-4">
             <Text className="text-sm text-slate-200 mb-2">
-              <Text className="font-bold">URL:</Text> http://{ipAddress}:{config.port ?? 8080}
+              <Text className="font-bold">URL:</Text> http://{ipAddress}:{config.port ?? 9999}
             </Text>
             <Text className="text-sm text-green-400 font-bold">
               {activeConnections} conexión{activeConnections !== 1 ? 'es' : ''} activa{activeConnections !== 1 ? 's' : ''}
