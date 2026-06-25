@@ -1,12 +1,19 @@
 package com.nexuslink
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 
 class MainActivity : ReactActivity() {
+
+  companion object {
+    const val REQUEST_CODE_SAF = 999
+  }
 
   override fun getMainComponentName(): String = "NexusLink"
 
@@ -17,5 +24,23 @@ class MainActivity : ReactActivity() {
   // OBLIGATORIO para evitar que Android intente recrear fragmentos rotos en cache
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(null)
+  }
+
+  override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    
+    if (requestCode == REQUEST_CODE_SAF) {
+        val uri: Uri? = if (resultCode == RESULT_OK) data?.data else null
+        
+        // Notificar al modulo de React Native sobre el resultado
+        val reactContext = reactNativeHost.reactInstanceManager.currentReactContext
+        val nexusModule = reactContext?.getNativeModule(NexusLinkModule::class.java)
+        
+        if (nexusModule != null) {
+            nexusModule.handleSafResult(uri)
+        } else {
+            Log.e("MainActivity", "NexusLinkModule no encontrado para procesar resultado SAF")
+        }
+    }
   }
 }

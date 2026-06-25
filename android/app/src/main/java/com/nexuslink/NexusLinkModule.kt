@@ -1,14 +1,20 @@
 package com.nexuslink
 
+import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.Build
+import android.provider.DocumentsContract
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+
+    private var pendingSafPromise: Promise? = null
+    private val safManager = SafManager(reactContext)
 
     override fun getName() = "NexusLinkModule"
 
@@ -90,10 +96,55 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
 
     @ReactMethod
     fun pickRootDirectory(promise: Promise) {
-        val map = Arguments.createMap()
-        map.putString("uri", "mock_uri")
-        map.putString("name", "Carpeta Interna (Mock)")
-        promise.resolve(map)
+        val currentActivity = reactApplicationContext.currentActivity
+        if (currentActivity == null) {
+            promise.reject("ACTIVITY_NOT_FOUND", "No se encontró una actividad activa")
+            return
+        }
+
+        pendingSafPromise = promise
+
+        try {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                // Opcional: sugerir una ubicación inicial
+                addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
+            currentActivity.startActivityForResult(intent, MainActivity.REQUEST_CODE_SAF)
+        } catch (e: Exception) {
+            pendingSafPromise = null
+            promise.reject("SAF_LAUNCH_ERROR", e.message)
+        }
+    }
+
+    /**
+     * Llamado desde MainActivity para procesar el resultado de la selección de carpeta
+     */
+    fun handleSafResult(uri: Uri?) {
+        val promise = pendingSafPromise
+        pendingSafPromise = null
+
+        if (uri != null) {
+            try {
+                // 1. Persistir el permiso usando el SafManager
+                safManager.persistPermission(uri)
+
+                // 2. Obtener el nombre de la carpeta (opcional, para feedback al usuario)
+                var folderName = "Carpeta seleccionada"
+                val documentUri = DocumentsContract.buildDocumentUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri))
+                
+                // 3. Responder a React Native
+                val map = Arguments.createMap()
+                map.putString("uri", uri.toString())
+                map.putString("name", folderName)
+                promise?.resolve(map)
+            } catch (e: Exception) {
+                promise?.reject("PERSIST_ERROR", "Error al persistir el permiso: ${e.message}")
+            }
+        } else {
+            promise?.reject("CANCELED", "El usuario canceló la selección")
+        }
     }
 
     @ReactMethod
