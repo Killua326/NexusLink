@@ -24,6 +24,18 @@ class MainActivity : ReactActivity() {
   // OBLIGATORIO para evitar que Android intente recrear fragmentos rotos en cache
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(null)
+    checkAndRestoreSafPermissions()
+  }
+
+  private fun checkAndRestoreSafPermissions() {
+    val safManager = SafManager(this)
+    val persistedUri = safManager.getPersistedUri()
+    
+    if (persistedUri != null) {
+        Log.d("MainActivity", "URI persistida encontrada: $persistedUri")
+    } else {
+        Log.d("MainActivity", "No se encontró URI persistida o el permiso ha expirado.")
+    }
   }
 
   override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
