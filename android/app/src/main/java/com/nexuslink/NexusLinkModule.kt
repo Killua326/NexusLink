@@ -62,6 +62,13 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
                 // Opcional: pasaríamos maxConnections y isReadOnly aquí desde React Native
                 putExtra("maxConnections", 10) 
                 putExtra("isReadOnly", false)
+                
+                // Pasar la URI persistida de SAF si existe
+                val persistedUri = safManager.getPersistedUri()
+                if (persistedUri != null) {
+                    putExtra("rootUri", persistedUri.toString())
+                }
+                
                 action = "START_SERVER"
             }
             context.startForegroundService(intent)
@@ -87,10 +94,20 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
     @ReactMethod
     fun getServerStatus(promise: Promise) {
         val map = Arguments.createMap()
+        val persistedUri = safManager.getPersistedUri()
         map.putBoolean("isRunning", false)
         map.putString("ipAddress", null)
         map.putInt("activeConnections", 0)
         map.putString("errorMessage", null)
+        
+        if (persistedUri != null) {
+            map.putString("persistedUri", persistedUri.toString())
+            map.putString("persistedName", "Carpeta seleccionada")
+        } else {
+            map.putString("persistedUri", null)
+            map.putString("persistedName", null)
+        }
+        
         promise.resolve(map)
     }
 
@@ -132,7 +149,16 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
 
                 // 2. Obtener el nombre de la carpeta (opcional, para feedback al usuario)
                 var folderName = "Carpeta seleccionada"
-                val documentUri = DocumentsContract.buildDocumentUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri))
+                try {
+                    val documentUri = DocumentsContract.buildDocumentUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri))
+                    reactApplicationContext.contentResolver.query(documentUri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            folderName = cursor.getString(0) ?: "Carpeta seleccionada"
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignorar error al obtener nombre y usar fallback
+                }
                 
                 // 3. Responder a React Native
                 val map = Arguments.createMap()

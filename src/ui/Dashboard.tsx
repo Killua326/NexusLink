@@ -81,7 +81,10 @@ const Dashboard: React.FC = () => {
       return;
     }
     if (!config.rootDirectoryUri) {
-      Alert.alert('Carpeta no seleccionada', 'Por favor, selecciona un directorio raíz.');
+      Alert.alert(
+        'Carpeta no seleccionada', 
+        'Por favor, selecciona un directorio raíz para el servidor WebDAV mediante el botón "📁 Seleccionar Carpeta Raíz".'
+      );
       return;
     }
 

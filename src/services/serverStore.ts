@@ -172,7 +172,23 @@ export const useServerStore = create<ExtendedServerState & ServerStoreActions>((
       try {
         set({ isLoading: true });
         const state = await nativeBridge.getServerStatus();
-        set(state);
+        
+        // Sincronizar estado incluyendo la carpeta persistida si regresó de Kotlin
+        const anyState = state as any;
+        if (anyState.persistedUri) {
+          set(prev => ({
+            ...prev,
+            ...state,
+            config: {
+              ...prev.config,
+              rootDirectoryUri: anyState.persistedUri,
+              rootDirectoryName: anyState.persistedName ?? 'Carpeta seleccionada',
+            },
+            selectedFolderName: anyState.persistedName ?? 'Carpeta seleccionada',
+          }));
+        } else {
+          set(state);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Error al obtener estado';
         set({ uiError: message });
