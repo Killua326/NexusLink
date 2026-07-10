@@ -10,13 +10,36 @@ import android.os.Build
 import android.provider.DocumentsContract
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import android.util.Log
 
 class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
-    private var pendingSafPromise: Promise? = null
+    companion object {
+        var pendingSafPromise: Promise? = null
+    }
+
     private val safManager = SafManager(reactContext)
 
+    // FIX: Las firmas de ActivityEventListener no llevan '?' en la versión actual de RN.
+    // activity, data e intent son non-nullable según la interfaz actual.
+    private val activityEventListener = object : ActivityEventListener {
+        override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
+            if (requestCode == MainActivity.REQUEST_CODE_SAF) {
+                val uri: Uri? = if (resultCode == Activity.RESULT_OK) data?.data else null
+                handleSafResult(uri)
+            }
+        }
+
+        override fun onNewIntent(intent: Intent) {
+            // No necesario para este módulo
+        }
+    }
+
     override fun getName() = "NexusLinkModule"
+
+    init {
+        reactApplicationContext.addActivityEventListener(activityEventListener)
+    }
 
     // Receptor de eventos desde el WebDAVService
     private val eventReceiver = object : BroadcastReceiver() {
@@ -45,11 +68,8 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
 
     override fun invalidate() {
         super.invalidate()
-        try {
-            reactApplicationContext.unregisterReceiver(eventReceiver)
-        } catch (e: Exception) {
-            // Ignorar si no estaba registrado
-        }
+        try { reactApplicationContext.unregisterReceiver(eventReceiver) } catch (e: Exception) {}
+        try { reactApplicationContext.removeActivityEventListener(activityEventListener) } catch (e: Exception) {}
     }
 
     @ReactMethod
@@ -59,16 +79,10 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
             val context = activity ?: reactApplicationContext
             val intent = Intent(context, WebDAVService::class.java).apply {
                 putExtra("port", port)
-                // Opcional: pasaríamos maxConnections y isReadOnly aquí desde React Native
-                putExtra("maxConnections", 10) 
+                putExtra("maxConnections", 10)
                 putExtra("isReadOnly", false)
-                
-                // Pasar la URI persistida de SAF si existe
                 val persistedUri = safManager.getPersistedUri()
-                if (persistedUri != null) {
-                    putExtra("rootUri", persistedUri.toString())
-                }
-                
+                if (persistedUri != null) putExtra("rootUri", persistedUri.toString())
                 action = "START_SERVER"
             }
             context.startForegroundService(intent)
@@ -99,7 +113,6 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
         map.putString("ipAddress", null)
         map.putInt("activeConnections", 0)
         map.putString("errorMessage", null)
-        
         if (persistedUri != null) {
             map.putString("persistedUri", persistedUri.toString())
             map.putString("persistedName", "Carpeta seleccionada")
@@ -107,7 +120,6 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
             map.putString("persistedUri", null)
             map.putString("persistedName", null)
         }
-        
         promise.resolve(map)
     }
 
@@ -118,64 +130,62 @@ class NexusLinkModule(reactContext: ReactApplicationContext) : ReactContextBaseJ
             promise.reject("ACTIVITY_NOT_FOUND", "No se encontró una actividad activa")
             return
         }
-
-        pendingSafPromise = promise
-
+        NexusLinkModule.pendingSafPromise = promise
         try {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-                // Opcional: sugerir una ubicación inicial
                 addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             }
             currentActivity.startActivityForResult(intent, MainActivity.REQUEST_CODE_SAF)
         } catch (e: Exception) {
-            pendingSafPromise = null
+            NexusLinkModule.pendingSafPromise = null
             promise.reject("SAF_LAUNCH_ERROR", e.message)
         }
     }
 
-    /**
-     * Llamado desde MainActivity para procesar el resultado de la selección de carpeta
-     */
-    fun handleSafResult(uri: Uri?) {
-        val promise = pendingSafPromise
-        pendingSafPromise = null
+    private fun handleSafResult(uri: Uri?) {
+        val promise = NexusLinkModule.pendingSafPromise
+        NexusLinkModule.pendingSafPromise = null
+
+        if (promise == null) {
+            Log.e("NexusLinkModule", "No hay una promesa pendiente para resolver el resultado SAF")
+            return
+        }
 
         if (uri != null) {
             try {
-                // 1. Persistir el permiso usando el SafManager
                 safManager.persistPermission(uri)
-
-                // 2. Obtener el nombre de la carpeta (opcional, para feedback al usuario)
                 var folderName = "Carpeta seleccionada"
                 try {
-                    val documentUri = DocumentsContract.buildDocumentUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri))
-                    reactApplicationContext.contentResolver.query(documentUri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { cursor ->
-                        if (cursor.moveToFirst()) {
-                            folderName = cursor.getString(0) ?: "Carpeta seleccionada"
-                        }
+                    val documentUri = DocumentsContract.buildDocumentUriUsingTree(
+                        uri, DocumentsContract.getTreeDocumentId(uri)
+                    )
+                    reactApplicationContext.contentResolver.query(
+                        documentUri,
+                        arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                        null, null, null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) folderName = cursor.getString(0) ?: "Carpeta seleccionada"
                     }
-                } catch (e: Exception) {
-                    // Ignorar error al obtener nombre y usar fallback
-                }
-                
-                // 3. Responder a React Native
+                } catch (e: Exception) { /* usar fallback */ }
+
                 val map = Arguments.createMap()
                 map.putString("uri", uri.toString())
                 map.putString("name", folderName)
-                promise?.resolve(map)
+                reactApplicationContext.runOnJSQueueThread { promise.resolve(map) }
             } catch (e: Exception) {
-                promise?.reject("PERSIST_ERROR", "Error al persistir el permiso: ${e.message}")
+                reactApplicationContext.runOnJSQueueThread {
+                    promise.reject("PERSIST_ERROR", "Error al persistir el permiso: ${e.message}")
+                }
             }
         } else {
-            promise?.reject("CANCELED", "El usuario canceló la selección")
+            reactApplicationContext.runOnJSQueueThread {
+                promise.reject("CANCELED", "El usuario canceló la selección")
+            }
         }
     }
 
-    @ReactMethod
-    fun addListener(eventName: String) {}
-
-    @ReactMethod
-    fun removeListeners(count: Int) {}
+    @ReactMethod fun addListener(eventName: String) {}
+    @ReactMethod fun removeListeners(count: Int) {}
 }
