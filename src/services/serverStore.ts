@@ -201,7 +201,10 @@ export const useServerStore = create<ExtendedServerState & ServerStoreActions>((
     pickRootDirectory: async () => {
       try {
         set({ isLoading: true, uiError: null });
+        console.log('[ServerStore] Iniciando pickRootDirectory...');
         const result = await nativeBridge.pickRootDirectory();
+        console.log('[ServerStore] Resultado SAF recibido:', result);
+        
         set({
           config: {
             ...get().config,
@@ -209,15 +212,15 @@ export const useServerStore = create<ExtendedServerState & ServerStoreActions>((
             rootDirectoryName: result.name,
           },
           selectedFolderName: result.name,
+          isLoading: false,
         });
+        console.log('[ServerStore] Store actualizado, isLoading = false');
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Cancellado';
-        // No mostrar error si es cancelación natural
+        console.error('[ServerStore] Error en pickRootDirectory:', error);
+        const message = error instanceof Error ? error.message : 'Cancelado';
         if (!message.toLowerCase().includes('cancel')) {
           set({ uiError: message });
         }
-        console.error('[ServerStore] Error picking directory:', error);
-      } finally {
         set({ isLoading: false });
       }
     },

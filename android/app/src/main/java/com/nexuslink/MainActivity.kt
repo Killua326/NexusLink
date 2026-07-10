@@ -40,19 +40,5 @@ class MainActivity : ReactActivity() {
 
   override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
     super.onActivityResult(requestCode, resultCode, data)
-    
-    if (requestCode == REQUEST_CODE_SAF) {
-        val uri: Uri? = if (resultCode == RESULT_OK) data?.data else null
-        
-        // Notificar al modulo de React Native sobre el resultado
-        val reactContext = reactNativeHost.reactInstanceManager.currentReactContext
-        val nexusModule = reactContext?.getNativeModule(NexusLinkModule::class.java)
-        
-        if (nexusModule != null) {
-            nexusModule.handleSafResult(uri)
-        } else {
-            Log.e("MainActivity", "NexusLinkModule no encontrado para procesar resultado SAF")
-        }
-    }
   }
 }
